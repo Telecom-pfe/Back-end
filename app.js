@@ -1,15 +1,13 @@
-const express = require("express")
-const cors = require("cors")
-const { createServer } = require("http");
+const express = require("express");
 const app = express();
-const server = createServer(app);
-const clientRouter = require("./routes/client")
+const clientRouter = require("./routes/client");
+const adminRouter = require("./routes/admin");
 
-
-app.use(cors());
 app.use(express.json());
-app.use("/api/client",clientRouter);
+app.use(express.urlencoded({ extended: true }));
+app.use("/api/client", clientRouter);
+app.use("/api/admin", adminRouter);
 
-server.listen(3001,()=>{
-    console.log("server started")
-})  
+app.listen(3000, () => {
+  console.log("server started");
+});
