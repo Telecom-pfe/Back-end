@@ -14,37 +14,98 @@ datasource db {
 }
 
 model Client {
-  id       Int    @id @default(autoincrement())
-  role     String
-  email    String @unique
-  password String
-  phoneNumber Int 
-  fullName String 
-  dateDeNaissance String
-  createdAt DateTime
-  updatedAt DateTime
-  Subscriptions  Subscription[]
+  id            Int                  @id @default(autoincrement())
+  phoneNumber   String?              @unique
+  email         String?              @unique
+  password      String
+  fullName      String
+  birthDate     DateTime
+  services      ClientSubscription[]
+  appointments  Appointment[]
+  payments      Payment[]
+  notifications Notification[]
+  admin         Admin?               @relation(fields: [adminId], references: [id])
+  adminId       Int?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+}
+
+model Admin {
+  id            Int            @id @default(autoincrement())
+  email         String         @unique
+  password      String
+  clients       Client[]
+  appointments  Appointment[]
+  notifications Notification[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 }
 
 model Subscription {
-  id Int @id @default(autoincrement())
-  name String @unique
-  
-  price Int 
-  decription String 
-  createdAt DateTime
-  client Client @relation(fields: [clientId], references: [id])
-  clientId Int
-  facture Facture[]
+  id          Int                  @id @default(autoincrement())
+  name        String
+  price       Float
+  description String
+  picture     String
+  clients     ClientSubscription[]
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  Payment Payment[]
 }
 
-model Facture {
-  id Int @id @default(autoincrement())
-  amount_due Int
-  paid Boolean
-  createdAt DateTime
-  subscription Subscription @relation(fields: [subscriptionId],references: [id])
+model ClientSubscription {
+  id             Int          @id @default(autoincrement())
+  client         Client       @relation(fields: [clientId], references: [id])
+  clientId       Int
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
   subscriptionId Int
+  status         String // Active, Inactive, Pending
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 }
 
+model Payment {
+  id           Int          @id @default(autoincrement())
+  client       Client       @relation(fields: [clientId], references: [id])
+  subscribtion Subscription @relation(fields: [subid], references: [id])
+  subid        Int
+  clientId     Int
+  amount       Float
+  method       String
+  receiptUrl   String?
+  createdAt    DateTime     @default(now())
+}
 
+model Appointment {
+  id        Int      @id @default(autoincrement())
+  client    Client   @relation(fields: [clientId], references: [id])
+  clientId  Int
+  admin     Admin?   @relation(fields: [adminId], references: [id])
+  adminId   Int?
+  dateTime  DateTime
+  status    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Notification {
+  id       Int      @id @default(autoincrement())
+  client   Client?  @relation(fields: [clientId], references: [id])
+  clientId Int?
+  admin    Admin?   @relation(fields: [adminId], references: [id])
+  adminId  Int?
+  message  String
+  type     String
+  sentAt   DateTime @default(now())
+}
+
+model Article {
+  id          Int      @id @default(autoincrement())
+  title       String
+  image       String
+  description String
+  price       Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
