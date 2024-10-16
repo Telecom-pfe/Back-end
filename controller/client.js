@@ -1,110 +1,94 @@
-const prisma = require("../db/prisma")
-const bcrypt = require("bcryptjs")
-const jwt = require("jsonwebtoken")
+const prisma = require("../db/prisma");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+require('dotenv').config();
 
-const signUp = async (req,res)=>{
+const createClient = async (req, res) => {
+  try {
+    const { phoneNumber, email, password, fullName, birthDate } = req.body;
+    const hashedPassword = await bcrypt.hash(password, 10)
+    const newClient = await prisma.client.create({
+      data: {
+        phoneNumber: phoneNumber || null,
+        email: email || null,
+        password:hashedPassword,
+        fullName,
+        birthDate: new Date(birthDate),
+      },
+    });
 
-let {
-email,
-password,
-fullName,
-phoneNumber,
-dateDeNaissance,
-createdAt
-}=req.body
-createdAt = new Date(createdAt);
-createdAt = createdAt.toISOString();
-
- 
-
- const checkemail = await prisma.Client.findUnique({
-    where: { email: email }
-  });
-
-  if (checkemail) {
-    return res.status(400).json("account exist ");
-  }
-
-  const hashedPassword = bcrypt.hashSync(password, 8);
-
-
-  const newClient = {
-    email,
-    password:hashedPassword,
-    fullName,
-    phoneNumber,
-    dateDeNaissance,
-    createdAt,
-    role:"client",
-    updatedAt:null
-  }
-  let result = await prisma.client.create({ data: newClient });
-
-  res.status(200).json(result);
-}
-
-module.exports={
-    signUp,
-    signIn
-}
-
-
-const signIn = async (req,res)=>{
-    const { email, password, patientId } = req.body;
-
-    if (!email || !password) {
-      return res.status(404).json("Email or Password should be provided");
-    } 
-  
-    try {
-      const client = await prisma.client.findUnique({
-        where: {
-          email: email,
-        },
+    res.status(201).json({
+      success: true,
+      message: "Client created successfully",
+      client: newClient,
+    });
+  } catch (error) {
+    console.error(error);
+    if (error.code === "P2002") {
+      res.status(400).json({
+        success: false,
+        message: "Phone number or email already exists",
       });
-      if (!client) {
-        return res.status(404).json("doctor not found");
-      }
-      const cofirmPassword = await bcrypt.compare(password, doctor.password);
-  
-      if (!cofirmPassword) {
-        return res.status(401).json("Password is incorrect.");
-      }
-    
-      if (client && cofirmPassword ) {
-        const subtoken = jwt.sign(
-          {
-            doctorId: doctor.id,
-            role: doctor.role,
-          },
-          process.env.JWT_SECRET,
-          {
-            expiresIn: "1d",
-          }
-        );
-        return res.status(405).json({mes:"You have to subscribe.",subtoken});
-      }
-      
-      const token = jwt.sign(
-        {
-          clientId: client.id,
-          role: client.role,
-        },
-        process.env.JWT_SECRET,
-        {
-          expiresIn: "1d",
-        }
-      );
-  
-      let loggedUser = {
-        id: client.id,
-        FullName: client.fullName,
-      };
-  
-      res.status(200).json({ loggedUser, token, message: "Login succeeded" });
-    } catch (error) {
-      console.log(error);
-      res.status(500).send("Internal server error");
+    } else {
+      res.status(500).json({
+        success: false,
+        message: "Internal server error",
+      });
     }
-}
+  }
+};
 
+const signIn = async (req, res) => {
+  const { emailOrPhone, password } = req.body;
+
+  try {
+    const client = await prisma.client.findFirst({
+      where: {
+        OR: [{ email: emailOrPhone }, { phoneNumber: emailOrPhone }],
+      },
+    });
+
+    if (!client) {
+      return res.status(401).json({
+        success: false,
+        message: "Client not found",
+      });
+    }
+
+    const passwordMatch = await bcrypt.compare(password, client.password);
+
+    if (!passwordMatch) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid password",
+      });
+    }
+
+    const token = jwt.sign({ id: client.id }, process.env.JWT_SECRET, {
+      expiresIn: "1h",
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Signed in successfully",
+      client: {
+        id: client.id,
+        email: client.email,
+        phoneNumber: client.phoneNumber,
+        fullName: client.fullName,
+      },
+      token,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+module.exports = {
+  createClient,
+  signIn,
+};
